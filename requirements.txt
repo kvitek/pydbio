@@ -1,0 +1,5 @@
+pip
+anaconda::psycopg2
+conda-forge::setuptools
+conda-forge::wheel
+conda-forge::mysql-connector-python

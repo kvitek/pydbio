@@ -1,0 +1,67 @@
+{
+    "[python]": {
+        "editor.autoIndent": "full",
+        "editor.tabSize": 4,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        },
+    },
+    "black-formatter.args": [
+        "--line-length",
+        "80"
+    ],
+    "isort.args": [
+        "--profile",
+        "black",
+        "--line-length",
+        "80"
+    ],
+    "python.defaultInterpreterPath": "/home/mgadmin/miniconda3/envs/psql/bin/python",
+    "editor.formatOnSave": true,
+    "python.terminal.executeInFileDir": true,
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        ".",
+        "-p",
+        "test_*.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestEnabled": true,
+    "mypy-type-checker.importStrategy": "useBundled",
+    "mypy-type-checker.args": [
+        "--verbose",
+        "--config",
+        "mypy.ini"
+    ],
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.stubPath": "./typings",
+    "python.analysis.useLibraryCodeForTypes": true,
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled",
+                "ssl": {
+                    "cert": "/mnt/mysql/client-cert.pem",
+                    "key": "/mnt/mysql/client-key.pem",
+                    "rejectUnauthorized": false,
+                    "minVersion": "TLSv1"
+                },
+                "debug": true,
+                "insecureAuth": true
+            },
+            "previewLimit": 50,
+            "server": "127.0.0.1",
+            "port": 3306,
+            "driver": "MySQL",
+            "database": "reports",
+            "username": "root",
+            "connectionTimeout": 15,
+            "name": "mg-server",
+            "password": "Burkina!7faso"
+        }
+    ],
+}
