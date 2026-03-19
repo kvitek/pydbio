@@ -2,12 +2,20 @@ from pydbio.basicio import configure
 from pydbio.configtypes import Config, Dialects
 
 CONFIGS = {
+    # "psql": Config(
+    #     host="127.0.0.1",
+    #     port=6543,
+    #     user="mgp_prod",
+    #     password="58fGWd74",
+    #     database="mgp_prod_replical",
+    #     dialect=Dialects("psql"),
+    # ),
     "psql": Config(
         host="127.0.0.1",
         port=6543,
-        user="mgp_prod",
-        password="58fGWd74",
-        database="mgp_prod_replical",
+        user="test_user",
+        password="dDt5RgxCV7fxLA",
+        database="test",
         dialect=Dialects("psql"),
     ),
     # "mysql": Config(
@@ -23,10 +31,10 @@ CONFIGS = {
     # ),
     "mysql": Config(
         host="127.0.0.1",
-        port=3306,
-        user="app",
-        password="Burkina!7faso",
-        database="test_",
+        port=3307,
+        user="admin",
+        password="Burkina@6faso",
+        database="reports",
         dialect=Dialects("mysql"),
         # ssl_ca="/mnt/mysql/ca.pem",
         # ssl_cert="/mnt/mysql/client-cert.pem",

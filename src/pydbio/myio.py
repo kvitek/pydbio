@@ -35,6 +35,10 @@ def open_mysql_connection_native(config: Config) -> MySQLConnection:
 
 
 class MySQL(SqlIO):
+    _quote_symbol = "`"
+
+    _table_metadatas: dict[str, TableMetaData] = {}
+
     def __init__(self, config: Config):
         self.config = replace(config)
         self.conn = self._insternal_connect()
@@ -84,7 +88,11 @@ class MySQL(SqlIO):
         self._get_connection().close()
 
     def table_metadata(self, name: str) -> TableMetaData:
-        return read_table_metadata(name, self)
+        if name in self._table_metadatas:
+            return self._table_metadatas[name]
+
+        self._table_metadatas[name] = read_table_metadata(name, self)
+        return self._table_metadatas[name]
 
     def database(self) -> str:
         return self._get_connection().database

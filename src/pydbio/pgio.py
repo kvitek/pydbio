@@ -1,10 +1,11 @@
 import dataclasses
+from io import StringIO
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, cast
 
 from pydbio.commands import gen_columns, gen_table_name, gen_values
 from pydbio.tablemeta import TableField, TableMetaData, min_max
 
-from .helpers import extract_psql_size, extract_psql_type
+from .helpers import Converter, extract_psql_size, extract_psql_type
 
 try:
     from psycopg2 import OperationalError, connect
@@ -14,6 +15,7 @@ try:
         TRANSACTION_STATUS_UNKNOWN,
     )
     from psycopg2.extensions import connection as PSQLConnection
+    from psycopg2.pool import ThreadedConnectionPool
 except ImportError:
     raise RuntimeError("install psycopg2 library")
 
@@ -33,6 +35,8 @@ def open_psql_connection_native(
 
 
 class PSQL(SqlIO):
+    _quote_symbol = '"'
+
     def __init__(self, config: Config) -> None:
         self.config = dataclasses.replace(config)
         self.conn = self._insternal_connect()
@@ -101,6 +105,21 @@ class PSQL(SqlIO):
 
     def database(self) -> str:
         return cast(str, self.fetch_tuples("select current_schema()")[0][0])
+
+    def copy_from(
+        self,
+        data: Iterable[Iterable[Any]],
+        columns: Iterable[str],
+        table_name: str,
+    ):
+        new_data_str = Converter.data_to_str(data, "\t")
+        with self._get_connection().cursor() as cur:
+            cur.copy_from(
+                file=StringIO(new_data_str),
+                columns=columns,
+                table=table_name,
+                sep="\t",
+            )
 
 
 def read_table_metadata(table_name: str, psql: PSQL) -> TableMetaData:

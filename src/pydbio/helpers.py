@@ -1,3 +1,4 @@
+import datetime as dt
 import re
 import time
 from typing import (
@@ -123,7 +124,7 @@ def extract_psql_size(r: Dict[str, Any]) -> Tuple[int, ...]:
     return tuple(size)
 
 
-def extract_psql_type(r: Dict[str, Any]) -> str:
+def extract_psql_type(r: Dict[str, str]) -> str:
     return PSQL_MYSQL_DATA_TYPES.get(r["data_type"], r["data_type"])
 
 
@@ -145,3 +146,34 @@ def extract_mysql_type(ftype: str) -> Tuple[str, Tuple[int, ...]]:
         return field_type, size
     except IndexError:
         raise Exception(f'unsupported field type "{ftype}"')
+
+
+class Converter:
+    values_tuple = re.compile(r"values\s*\((%s.*)+\)", re.I)
+    values_dict = re.compile(r"values\s*\((%\(\w+\)s.*)+\)", re.I)
+
+    @classmethod
+    def to_str(cls, data: Any) -> str:
+        if data is None:
+            return "\\N"
+        if isinstance(data, str):
+            return data
+        if isinstance(data, dt.date):
+            return str(data)
+        if isinstance(data, float):
+            return "{:.4f}".format(data)
+
+        return str(data)
+
+    @classmethod
+    def iterable_to_str(cls, data: Iterable[Any], sep: str) -> str:
+        return sep.join(cls.to_str(e) for e in data)
+
+    @classmethod
+    def data_to_str(cls, data: Iterable[Iterable[Any]], sep: str) -> str:
+        return "\n".join(cls.iterable_to_str(row, sep) for row in data)
+
+    @classmethod
+    def convert_sql_to_fast_sql(cls, query: str) -> str:
+        query = cls.values_tuple.sub("values %s", query)
+        return cls.values_dict.sub("values %s", query)

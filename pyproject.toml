@@ -3,16 +3,24 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "psqlacc"
+name = "pydbio"
 version = "0.0.1"
 authors = [
   { name="Victor Kugushev", email="vkugushev@gmail.com" },
 ]
-description = "PSQL access package"
+description = "PSQL, MySQL access package"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+  "pydantic",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+all = [
+  "psycopg2",
+  "mysql-connector-python",
 ]
