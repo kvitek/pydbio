@@ -1,36 +1,40 @@
-import dataclasses
-from io import StringIO
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, cast
+from __future__ import annotations
 
-from pydbio.commands import gen_columns, gen_table_name, gen_values
-from pydbio.tablemeta import TableField, TableMetaData, min_max
+from typing import Any, Iterable, Optional, Sequence, cast
 
-from .helpers import Converter, extract_psql_size, extract_psql_type
+from psycopg import InterfaceError, InternalError
+
+from .commands import gen_columns, gen_table_name, gen_values
+from .helpers import extract_psql_size, extract_psql_type
+from .tablemeta import TableField, TableMetaData, min_max
 
 try:
-    from psycopg2 import OperationalError, connect
-    from psycopg2.errors import InFailedSqlTransaction, OperationalError
-    from psycopg2.extensions import (
-        TRANSACTION_STATUS_INERROR,
-        TRANSACTION_STATUS_UNKNOWN,
-    )
-    from psycopg2.extensions import connection as PSQLConnection
-    from psycopg2.pool import ThreadedConnectionPool
+    import psycopg.sql as sql
+    from psycopg import Connection as PSQLConnection
+    from psycopg import OperationalError, connect
+    from psycopg.errors import InFailedSqlTransaction, OperationalError
+    from psycopg_pool import ConnectionPool
+
+    # from psycopg.pool import ThreadedConnectionPool
 except ImportError:
-    raise RuntimeError("install psycopg2 library")
+    raise RuntimeError("install psycopg library")
 
 from .configtypes import Config, ExecuteResult, QueryParams
 from .connection import SqlIO
 from .helpers import retry
 
-failed_connection_retry = retry(1, (InFailedSqlTransaction, OperationalError))
+failed_connection_retry = retry(
+    2,
+    (OperationalError, InternalError, InterfaceError),
+    SqlIO,
+)
 
 
 def open_psql_connection_native(
     host: str, port: int, database: str, user: str, passwd: str
 ) -> PSQLConnection:
     return connect(
-        database=database, user=user, password=passwd, host=host, port=port
+        dbname=database, user=user, password=passwd, host=host, port=port
     )
 
 
@@ -38,7 +42,7 @@ class PSQL(SqlIO):
     _quote_symbol = '"'
 
     def __init__(self, config: Config) -> None:
-        self.config = dataclasses.replace(config)
+        self.config = config.model_copy()
         self.conn = self._insternal_connect()
 
     def _insternal_connect(self) -> PSQLConnection:
@@ -54,13 +58,6 @@ class PSQL(SqlIO):
         try:
             if self.conn.closed != 0:
                 self.conn = self._insternal_connect()
-
-            if self.conn.get_transaction_status() in (
-                TRANSACTION_STATUS_INERROR,
-                TRANSACTION_STATUS_UNKNOWN,
-            ):
-                self.conn = self._insternal_connect()
-
         except OperationalError as oe:
             self.conn = self._insternal_connect()
 
@@ -69,11 +66,12 @@ class PSQL(SqlIO):
     @failed_connection_retry
     def execute(self, query: str, params: QueryParams = ()) -> ExecuteResult:
         with self._get_connection().cursor() as cur:
-            cur.execute(query, params)
-            if cur.rowcount >= 0:
-                data = cur.fetchall()
-            else:
-                data = []
+            cur.execute(cast(Any, query), params)
+            data = []
+            if cur.rownumber is not None:
+                for c in cur.results():
+                    data.extend(c.fetchall())
+
             if cur.description:
                 columns = [c[0] for c in cur.description]
             else:
@@ -84,7 +82,7 @@ class PSQL(SqlIO):
     @failed_connection_retry
     def executemany(self, query: str, data: Sequence[Any]):
         with self._get_connection().cursor() as cur:
-            cur.executemany(query, data)
+            cur.executemany(cast(Any, query), data)
 
     @failed_connection_retry
     def commit(self):
@@ -106,20 +104,23 @@ class PSQL(SqlIO):
     def database(self) -> str:
         return cast(str, self.fetch_tuples("select current_schema()")[0][0])
 
+    @failed_connection_retry
     def copy_from(
         self,
-        data: Iterable[Iterable[Any]],
+        data: Iterable[Sequence[Any]],
         columns: Iterable[str],
         table_name: str,
     ):
-        new_data_str = Converter.data_to_str(data, "\t")
+        # new_data_str = Converter.data_to_str(data, "\t")
+        qry = sql.SQL("COPY {} ({}) FROM STDIN").format(
+            sql.Identifier(table_name),
+            sql.SQL(",").join(map(sql.Identifier, columns)),
+        )
+
         with self._get_connection().cursor() as cur:
-            cur.copy_from(
-                file=StringIO(new_data_str),
-                columns=columns,
-                table=table_name,
-                sep="\t",
-            )
+            with cur.copy(qry) as copy:
+                for row in data:
+                    copy.write_row(row)
 
 
 def read_table_metadata(table_name: str, psql: PSQL) -> TableMetaData:

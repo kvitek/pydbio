@@ -1,5 +1,5 @@
 from dataclasses import Field
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypeVar, Union
+from typing import Any, ClassVar, Protocol, TypeVar, Union
 
 
 class DataclassInstance(Protocol):

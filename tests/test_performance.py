@@ -2,13 +2,13 @@ import inspect
 import random
 import time
 import unittest
-from dataclasses import asdict
 from decimal import Decimal
 from typing import Any, Tuple, cast
 
-from pydbio.basicio import configure, get_connection
-from pydbio.pgio import PSQL, PSQLConnection, ThreadedConnectionPool
-from tests.config import CONFIGS
+from pydb.configtypes import Config
+from src.pydb.basicio import configure, configure_close, get_connection
+from src.pydb.pgio import PSQL, ConnectionPool, PSQLConnection
+from tests.config import CONFIGS, TEST_TABLES
 
 
 def gen_data_set(length: int) -> list[Tuple[int, str, str, Decimal]]:
@@ -40,7 +40,12 @@ def format_time(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d}:{msec:03d}"
 
 
-POOL: ThreadedConnectionPool | None = None
+POOL: ConnectionPool | None = None
+
+
+def config_to_conninfo(config: Config) -> str:
+
+    return f"postgresql://{config.user}:{config.password}@{config.host}:{config.port}/{config.database}"
 
 
 def open_connection_pool():
@@ -48,35 +53,18 @@ def open_connection_pool():
     if POOL is not None:
         return
 
-    kwargs = asdict(CONFIGS["psql"])
-    kwargs.pop("dialect")
+    conninfo = config_to_conninfo(CONFIGS.root["psql"])
 
-    POOL = ThreadedConnectionPool(minconn=4, maxconn=10, **kwargs)
-
-
-def getconn(key: str | None = None) -> PSQLConnection:
-    global POOL
-    if POOL is None:
-        raise RuntimeError("call open_connection_pool first")
-
-    return POOL.getconn(key)
+    POOL = ConnectionPool(conninfo=conninfo, min_size=4, max_size=10, open=True)
 
 
-def putconn(con: PSQLConnection, key: str | None = None):
-    global POOL
-    if POOL is None:
-        raise RuntimeError("call open_connection_pool first")
-
-    POOL.putconn(con, key)
-
-
-class TestPerformance(unittest.TestCase):
+class TestPerformancePSQL(unittest.TestCase):
     data: list[Any] = []
     results: dict[str, str] = {}
 
     @classmethod
     def setUpClass(cls) -> None:
-        configure(CONFIGS)
+        configure(CONFIGS.root)
 
         cls.data = gen_data_set(1000000)
         cls.results = {}
@@ -88,6 +76,7 @@ class TestPerformance(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
+        configure_close()
         for name, r in cls.results.items():
             print(name, r)
 
@@ -142,17 +131,38 @@ class TestPerformance(unittest.TestCase):
         name = inspect.stack()[0][3]
         self.results[name] = format_time(fn - st)
 
+    def test_big_query(self):
+        con = get_connection("psql")
+
+        st = time.time()
+        buffer = 'insert into public.users ("id", name, email, amount) values '
+        buffer += ",".join(
+            (
+                f"({row[0]},'{row[1]}','{row[2]}','{row[3]}')"
+                for row in self.data
+            )
+        )
+        con.execute(buffer)
+        con.commit()
+        fn = time.time()
+
+        name = inspect.stack()[0][3]
+        self.results[name] = format_time(fn - st)
+
     def test_connection_pool(self):
         ITERATIONS = 1000
         open_connection_pool()
 
         st = time.time()
         for i in range(ITERATIONS):
-            con = getconn()
-            with con.cursor() as cur:
-                cur.execute("select 1+1")
-                cur.fetchall()
-            putconn(con)
+            if POOL is None:
+                raise RuntimeError()
+
+            with POOL.connection() as con:
+                with con.cursor() as cur:
+                    cur.execute("select 1+1")
+                    cur.fetchall()
+
         fn = time.time()
 
         name = inspect.stack()[0][3]
@@ -160,7 +170,7 @@ class TestPerformance(unittest.TestCase):
 
     def test_connection(self):
         ITERATIONS = 1000
-        con = PSQL(config=CONFIGS["psql"])
+        con = get_connection("psql")
 
         st = time.time()
         for i in range(ITERATIONS):
@@ -170,12 +180,85 @@ class TestPerformance(unittest.TestCase):
         name = inspect.stack()[0][3]
         self.results[name] = format_time(fn - st)
 
+    def test_reconnect(self):
+        conn = get_connection("psql")
+
+        with self.subTest("close"):
+            conn.close()
+            conn.fetch_tuples("select 1+1")
+
+        with self.subTest("unfetched results"):
+            conn.execute("select 1+1")
+            conn.fetch_tuples("select 1+1")
+
+
+class TestPerformanceMySQL(unittest.TestCase):
+    data: list[Any] = []
+    results: dict[str, str] = {}
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        configure(CONFIGS.root)
+
+        cls.data = gen_data_set(1000000)
+        cls.results = {}
+
+        con = get_connection("mysql")
+        for query in TEST_TABLES["mysql"]:
+            con.execute(query)
+        con.commit()
+
+    def setUp(self):
+        con = get_connection("mysql")
+        con.execute("truncate table users")
+        con.commit()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        configure_close()
+        for name, r in cls.results.items():
+            print(name, r)
+
+    def test_chunks_with_commit(self):
+        CHUNK_SIZE = 10000
+        query = """
+            insert into users (id, name, email, amount) 
+            values (%s, %s, %s, %s)"""
+
+        con = get_connection("mysql")
+
+        chunks = int(len(self.data) / CHUNK_SIZE)
+        st = time.time()
+        for i in range(chunks):
+            con.executemany(
+                query=query,
+                data=self.data[i * CHUNK_SIZE : (i + 1) * CHUNK_SIZE],
+            )
+        con.commit()
+        fn = time.time()
+
+        name = inspect.stack()[0][3]
+        self.results[name] = format_time(fn - st)
+
+    def test_big_query(self):
+        con = get_connection("mysql")
+
+        st = time.time()
+        buffer = "insert into users (`id`, name, email, amount) values "
+        buffer += ",".join(
+            (
+                f"({row[0]},'{row[1]}','{row[2]}','{row[3]}')"
+                for row in self.data
+            )
+        )
+        con.execute(buffer)
+        con.commit()
+        fn = time.time()
+
+        name = inspect.stack()[0][3]
+        self.results[name] = format_time(fn - st)
+
 
 if __name__ == "__main__":
-    unittest.main(
-        defaultTest=[
-            "TestPerformance.test_connection_pool",
-            "TestPerformance.test_connection",
-        ]
-    )
-    # unittest.main()
+    # unittest.main(defaultTest=["TestPerformanceMySQL"])
+    unittest.main()

@@ -1,6 +1,6 @@
 import unittest
 
-from pydbio.where import gen_where
+from pydb.where import gen_where
 
 
 class TestWhere(unittest.TestCase):
@@ -63,6 +63,24 @@ class TestWhere(unittest.TestCase):
             self.assertEqual(params, [100, "%app"], params)
             self.assertEqual(
                 where, "(not ((cik = %s) and (company_name like %s)))", where
+            )
+
+        with self.subTest("`<=`"):
+            params, where = gen_where(
+                {"cik": ("<=", 100), "company_name": ("like", "%app")}
+            )
+            self.assertEqual(params, [100, "%app"], params)
+            self.assertEqual(
+                where, "(cik <= %s) and (company_name like %s)", where
+            )
+
+        with self.subTest("`==`"):
+            params, where = gen_where(
+                {"cik": ("==", "cik"), "company_name": ("like", "%app")}
+            )
+            self.assertEqual(params, ["%app"], params)
+            self.assertEqual(
+                where, "(cik = cik) and (company_name like %s)", where
             )
 
 

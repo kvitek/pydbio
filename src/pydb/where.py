@@ -16,14 +16,14 @@ from typing import (
     get_args,
 )
 
-from pydbio.types import T_BASE_DATA
+from .types import T_BASE_DATA
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
 from pydantic import BaseModel
 
-OpType = Literal["=", "!=", "like", "<", "<=", ">", ">=", "is", "is not"]
+OpType = Literal["=", "!=", "like", "<", "<=", ">", ">=", "is", "is not", "=="]
 OpTypeKeys = set(get_args(OpType))
 
 LogicalOp = Literal["and", "or", "not"]
@@ -78,7 +78,9 @@ def get_params_where(params: dict[str, ParamOp], subs: list[Any]) -> list[str]:
                     subs.append(value)
             else:
                 if value[0] in OpTypeKeys:
-                    if value[0] in ("is", "is not") or value[1] is not None:
+                    if value[0] == "==":
+                        where.append(f"{name} = {value[1]}")
+                    elif value[0] in ("is", "is not") or value[1] is not None:
                         where.append(f"{name} {value[0]} %s")
                         subs.append(value[1])
                 elif value[0] == "in":

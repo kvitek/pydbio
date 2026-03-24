@@ -1,13 +1,13 @@
 import unittest
 
-from pydbio.basicio import get_connection
-from tests.config import TABLE_METADATA
+from src.pydb import configure, get_connection
+from tests.config import CONFIGS, TABLE_METADATA
 
 
 class TestTableMetaData(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-
+        configure(CONFIGS.root)
         for name, values in TABLE_METADATA.items():
             con = get_connection(name)
             for value in values:

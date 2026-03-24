@@ -18,7 +18,7 @@
         "--line-length",
         "80"
     ],
-    "python.defaultInterpreterPath": "/home/mgadmin/miniconda3/envs/psql/bin/python",
+    "python.defaultInterpreterPath": "/home/mgadmin/miniconda3/envs/pydb/bin/python",
     "editor.formatOnSave": true,
     "python.terminal.executeInFileDir": true,
     "python.testing.unittestArgs": [

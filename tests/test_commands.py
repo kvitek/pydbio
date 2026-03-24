@@ -1,7 +1,7 @@
 import unittest
 
-from pydbio.basicio import get_connection
-from pydbio.commands import gen_table_name
+from pydb.basicio import get_connection
+from pydb.commands import gen_table_name
 from tests.config import TABLE_METADATA
 
 

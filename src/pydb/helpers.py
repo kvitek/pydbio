@@ -7,6 +7,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Protocol,
     Sequence,
     Tuple,
     Type,
@@ -14,13 +15,21 @@ from typing import (
     Union,
 )
 
-from pydbio._const import PSQL_MYSQL_DATA_TYPES
+from ._const import PSQL_MYSQL_DATA_TYPES
 
 T = TypeVar("T")
+TT = TypeVar("TT")
+
+
+class HasClose(Protocol):
+    def close(self): ...
 
 
 def retry(
-    retry: int, exc_cls: Tuple[Type[Exception], ...], delay: float = 0.1
+    retry: int,
+    exc_cls: Tuple[Type[Exception], ...],
+    cls: type[HasClose] | None = None,
+    delay: float = 0.1,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     if retry <= 0:
         raise AttributeError()
@@ -31,6 +40,14 @@ def retry(
 
             for i in range(retry + 1):
                 try:
+                    if (
+                        i > 0
+                        and cls is not None
+                        and len(args) > 0
+                        and isinstance(args[0], cls)
+                    ):
+                        args[0].close()
+
                     return function(*args, **kwargs)
                 except exc_cls as e:
                     time.sleep(delay)

@@ -3,7 +3,6 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import MISSING, fields, is_dataclass
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -11,23 +10,24 @@ from typing import (
     Sequence,
     Tuple,
     Type,
+    TypeAlias,
     TypeVar,
     overload,
 )
 
 from pydantic import BaseModel
 
-from pydbio.configtypes import (
+from .configtypes import (
     Config,
     ExecuteResult,
     QueryParams,
     QueryParamsIn,
     QueryResult,
 )
-from pydbio.helpers import parse_dict_command, parse_positional_command
-from pydbio.tablemeta import TableMetaData
-from pydbio.types import T_BASE, T_BASE_DATA, T_DATA, DataclassInstance
-from pydbio.where import InitParams, gen_header, gen_where
+from .helpers import parse_dict_command, parse_positional_command
+from .tablemeta import TableMetaData
+from .types import T_BASE, T_BASE_DATA, T_DATA, DataclassInstance
+from .where import InitParams, gen_header, gen_where
 
 
 class DatabaseConnection(ABC):
@@ -63,6 +63,8 @@ class DatabaseConnection(ABC):
 
 class SqlIO(DatabaseConnection):
     _quote_symbol: str = ""
+
+    InitParams: TypeAlias = InitParams
 
     @classmethod
     def quote(cls, text: str) -> str:
@@ -158,7 +160,35 @@ class SqlIO(DatabaseConnection):
         )
         return [dict(zip(columns, row)) for row in res]
 
+    @overload
     def fetch_typed(
+        self,
+        klass: Type[T_DATA],
+        query: str,
+        params: QueryParams = (),
+    ) -> list[T_DATA]: ...
+    @overload
+    def fetch_typed(
+        self,
+        klass: Type[T_BASE],
+        query: str,
+        params: QueryParams = (),
+    ) -> list[T_BASE]: ...
+
+    def fetch_typed(
+        self,
+        klass: Type[T_DATA] | Type[T_BASE],
+        query: str,
+        params: QueryParams = (),
+    ) -> list[T_DATA] | list[T_BASE]:
+        if issubclass(klass, BaseModel):
+            return self._fetch_typed_pydantic(klass, query=query, params=params)  # type: ignore
+        else:
+            return self._fetch_typed_dataclass(
+                klass, query=query, params=params
+            )
+
+    def _fetch_typed_dataclass(
         self,
         klass: Type[T_DATA],
         query: str,
@@ -200,7 +230,7 @@ class SqlIO(DatabaseConnection):
             res.append(klass(**params))
         return res
 
-    def fetch_typed_pydantic(
+    def _fetch_typed_pydantic(
         self,
         klass: Type[T_BASE],
         query: str,
@@ -250,7 +280,7 @@ class SqlIO(DatabaseConnection):
         *,
         all: bool = True,
         exclude: Sequence[str] = (),
-    ) -> Sequence[T_BASE]: ...
+    ) -> list[T_BASE]: ...
     @overload
     def find_all(
         self,
@@ -260,7 +290,7 @@ class SqlIO(DatabaseConnection):
         *,
         all: bool = True,
         exclude: Sequence[str] = (),
-    ) -> Sequence[T_DATA]: ...
+    ) -> list[T_DATA]: ...
 
     def find_all(
         self,
@@ -270,7 +300,7 @@ class SqlIO(DatabaseConnection):
         *,
         all: bool = True,
         exclude: Sequence[str] = (),
-    ) -> Sequence[T_BASE] | Sequence[T_DATA]:
+    ) -> list[T_DATA] | list[T_BASE]:
         columns = self.header(klass, all=all, exclude=exclude)
         header = ", ".join((self.quote(c) for c in columns))
         params, wh = self.where(where)
@@ -279,7 +309,32 @@ class SqlIO(DatabaseConnection):
         if wh:
             query += f" where {wh}"
 
-        if issubclass(klass, BaseModel):
-            return self.fetch_typed_pydantic(klass, query=query, params=params)  # type: ignore
-        else:
-            return self.fetch_typed(klass, query=query, params=params)
+        return self.fetch_typed(klass=klass, query=query, params=params)  # type: ignore
+
+    @overload
+    def fetch_all(
+        self,
+        klass: type[T_BASE],
+        query: str,
+        where: InitParams,
+    ) -> list[T_BASE]: ...
+    @overload
+    def fetch_all(
+        self,
+        klass: type[T_DATA],
+        query: str,
+        where: InitParams,
+    ) -> list[T_DATA]: ...
+
+    def fetch_all(
+        self,
+        klass: type[T_DATA] | type[T_BASE],
+        query: str,
+        where: InitParams,
+    ) -> list[T_BASE] | list[T_DATA]:
+        params, wh = self.where(where)
+
+        if wh:
+            query += f" where {wh}"
+
+        return self.fetch_typed(klass=klass, query=query, params=params)  # type: ignore

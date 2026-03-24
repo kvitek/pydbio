@@ -1,6 +1,7 @@
-from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
+
+from pydantic import BaseModel
 
 
 class Dialects(str, Enum):
@@ -8,8 +9,7 @@ class Dialects(str, Enum):
     psql = "psql"
 
 
-@dataclass
-class Config:
+class Config(BaseModel):
     user: str
     database: str
     password: str
@@ -24,6 +24,6 @@ class Config:
 QueryParams = Union[Dict[str, Any], Sequence[Any]]
 QueryParamsIn = Sequence[Any]
 
-QueryResult = Sequence[Any]
+QueryResult = list[Tuple[Any, ...]]
 QueryColumns = Sequence[str]
 ExecuteResult = Tuple[QueryResult, QueryColumns]

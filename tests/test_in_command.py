@@ -1,6 +1,6 @@
 import unittest
 
-from pydbio.helpers import parse_dict_command, parse_positional_command
+from pydb.helpers import parse_dict_command, parse_positional_command
 
 
 class TestInCommand(unittest.TestCase):

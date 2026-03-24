@@ -1,13 +1,13 @@
 import unittest
 
-from pydbio.basicio import configure, get_connection
+from pydb.basicio import configure, get_connection
 from tests.config import CONFIGS
 
 
 class TestConnection(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        configure(CONFIGS)
+        configure(CONFIGS.root)
 
     def test_con_reconnect(self):
         for name in ["mysql", "psql"]:

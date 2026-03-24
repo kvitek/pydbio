@@ -1,48 +1,43 @@
-from pydbio.basicio import configure
-from pydbio.configtypes import Config, Dialects
+from pydantic import RootModel
 
-CONFIGS = {
-    # "psql": Config(
-    #     host="127.0.0.1",
-    #     port=6543,
-    #     user="mgp_prod",
-    #     password="58fGWd74",
-    #     database="mgp_prod_replical",
-    #     dialect=Dialects("psql"),
-    # ),
-    "psql": Config(
-        host="127.0.0.1",
-        port=6543,
-        user="test_user",
-        password="dDt5RgxCV7fxLA",
-        database="test",
-        dialect=Dialects("psql"),
-    ),
-    # "mysql": Config(
-    #     host="127.0.0.1",
-    #     port=3306,
-    #     user="app",
-    #     password="Burkina!7faso",
-    #     database="test_",
-    #     dialect=Dialects("mysql"),
-    #     ssl_ca="/mnt/mysql/ca.pem",
-    #     ssl_cert="/mnt/mysql/client-cert.pem",
-    #     ssl_key="/mnt/mysql/client-key.pem",
-    # ),
-    "mysql": Config(
-        host="127.0.0.1",
-        port=3307,
-        user="admin",
-        password="Burkina@6faso",
-        database="reports",
-        dialect=Dialects("mysql"),
-        # ssl_ca="/mnt/mysql/ca.pem",
-        # ssl_cert="/mnt/mysql/client-cert.pem",
-        # ssl_key="/mnt/mysql/client-key.pem",
-    ),
+from src.pydb.configtypes import Config, Dialects
+
+
+class ConfigModels(RootModel):
+    root: dict[str, Config]
+
+
+CONFIGS = ConfigModels.model_validate_json(
+    open("tests/env/connection.json").read()
+)
+
+TEST_TABLES = {
+    "mysql": [
+        "drop table if exists users",
+        """
+            CREATE TABLE `users` (
+            `id` int NOT NULL,
+            `name` varchar(100) NOT NULL,
+            `email` varchar(100) NOT NULL,
+            `amount` decimal(12,2) NOT NULL,
+            PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+        """,
+    ],
+    "psql": [
+        "DROP TABLE IF EXISTS users",
+        """
+            CREATE TABLE IF NOT EXISTS users
+            (
+                id integer NOT NULL,
+                name character varying(100) COLLATE pg_catalog."default" NOT NULL,
+                email character varying(100) COLLATE pg_catalog."default" NOT NULL,
+                amount numeric(20,4) NOT NULL,
+                CONSTRAINT users_pkey PRIMARY KEY (id)
+            )
+        """,
+    ],
 }
-
-configure(CONFIGS)
 
 TABLE_METADATA = {
     "psql": [

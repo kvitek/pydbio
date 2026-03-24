@@ -1,26 +1,18 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "pydbio"
-version = "0.0.1"
+name = "pydb"
+version = "0.1.1"
+description = "MySQL and PostgreSQL access"
 authors = [
-  { name="Victor Kugushev", email="vkugushev@gmail.com" },
+    {name = "mgadmin",email = "vkugushev@gmail.com"}
 ]
-description = "PSQL, MySQL access package"
-readme = "README.md"
-requires-python = ">=3.10"
-license = "MIT"
+requires-python = ">=3.11"
 dependencies = [
-  "pydantic",
-]
-classifiers = [
-    "Programming Language :: Python :: 3",
+    "mysql-connector-python (>=9.6.0,<10.0.0)",
+    "psycopg[binary] (>=3.3.3,<4.0.0)",
+    "pydantic"
 ]
 
-[project.optional-dependencies]
-all = [
-  "psycopg2",
-  "mysql-connector-python",
-]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

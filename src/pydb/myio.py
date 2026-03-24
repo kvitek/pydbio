@@ -1,20 +1,18 @@
-from dataclasses import replace
 from typing import Any, Iterable, Optional, Sequence, cast
 
 from mysql.connector import MySQLConnection, connect
 
-from pydbio.commands import (
+from .commands import (
     gen_columns,
     gen_set,
     gen_table_name,
     gen_values,
     gen_where,
 )
-from pydbio.connection import SqlIO
-from pydbio.helpers import extract_mysql_type
-from pydbio.tablemeta import TableField, TableMetaData, min_max
-
 from .configtypes import Config, ExecuteResult, QueryParams, QueryParamsIn
+from .connection import SqlIO
+from .helpers import extract_mysql_type
+from .tablemeta import TableField, TableMetaData, min_max
 
 
 def open_mysql_connection_native(config: Config) -> MySQLConnection:
@@ -40,7 +38,7 @@ class MySQL(SqlIO):
     _table_metadatas: dict[str, TableMetaData] = {}
 
     def __init__(self, config: Config):
-        self.config = replace(config)
+        self.config = config.model_copy()
         self.conn = self._insternal_connect()
 
     def _insternal_connect(self) -> MySQLConnection:
@@ -71,10 +69,10 @@ class MySQL(SqlIO):
         finally:
             cur.close()
 
-    def executemany(self, query: str, params: Sequence[Any]):
+    def executemany(self, query: str, data: Sequence[Any]):
         try:
             cur = self._get_connection().cursor(dictionary=False)
-            cur.executemany(query, params)
+            cur.executemany(query, data)
         finally:
             cur.close()
 
