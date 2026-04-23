@@ -39,3 +39,38 @@ def gen_table_name(
         return f"{sep}{table_name}{sep}"
 
     return f"{sep}{db_name}{sep}.{sep}{table_name}{sep}"
+
+
+def insert_update_command_psq(
+    table_name: str,
+    fields: Iterable[str],
+    unique_fields: Iterable[str],
+    sep: str,
+) -> str:
+    columns = gen_columns(fields=fields, sep=sep)
+    values = gen_values(fields, False)
+    table_name = gen_table_name(table_name=table_name, sep=sep)
+
+    on_dupl = ",\n".join(
+        [
+            f"{sep}{field}{sep} = EXCLUDED.{sep}{field}{sep}"
+            for field in fields
+            if field not in unique_fields
+        ]
+    )
+    if on_dupl == "":
+        on_dupl = ",\n".join(
+            [
+                f"{sep}{field}{sep} = EXCLUDED.{sep}{field}{sep}"
+                for field in unique_fields
+            ]
+        )
+
+    insert = "insert"
+
+    return f"""{insert} into {table_name}
+({columns})
+values({values})
+on conflict ({','.join(f for f in unique_fields)})
+do update set
+{on_dupl}"""

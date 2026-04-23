@@ -35,8 +35,6 @@ def open_mysql_connection_native(config: Config) -> MySQLConnection:
 class MySQL(SqlIO):
     _quote_symbol = "`"
 
-    _table_metadatas: dict[str, TableMetaData] = {}
-
     def __init__(self, config: Config):
         self.config = config.model_copy()
         self.conn = self._insternal_connect()
@@ -76,6 +74,9 @@ class MySQL(SqlIO):
         finally:
             cur.close()
 
+    def start_transaction(self):
+        self._get_connection().start_transaction()
+
     def commit(self):
         self._get_connection().commit()
 
@@ -85,12 +86,8 @@ class MySQL(SqlIO):
     def close(self):
         self._get_connection().close()
 
-    def table_metadata(self, name: str) -> TableMetaData:
-        if name in self._table_metadatas:
-            return self._table_metadatas[name]
-
-        self._table_metadatas[name] = read_table_metadata(name, self)
-        return self._table_metadatas[name]
+    def _table_metadata(self, name: str) -> TableMetaData:
+        return read_table_metadata(name, self)
 
     def database(self) -> str:
         return self._get_connection().database
@@ -108,6 +105,26 @@ class MySQL(SqlIO):
         # value = quote(value)
 
         return cast(str, cvalue.decode())  # type: ignore
+
+    def _insert_update_cmd(
+        self,
+        table_name: str,
+        fields: Iterable[str],
+        unique_fields: Iterable[str],
+        dict_style: bool,
+        sep: str,
+        ignore: bool,
+        db_name: str | None = None,
+    ) -> str:
+        return insert_update_command(
+            table_name=table_name,
+            fields=fields,
+            unique_fields=unique_fields,
+            dict_style=dict_style,
+            sep=sep,
+            ignore=ignore,
+            db_name=db_name,
+        )
 
 
 def read_table_metadata(table_name: str, mysql: MySQL) -> TableMetaData:
@@ -138,6 +155,8 @@ def read_table_metadata(table_name: str, mysql: MySQL) -> TableMetaData:
 
         if r["Null"] == "NO" and r["Default"] is None:
             field.is_not_null = True
+        if r["Default"] is not None:
+            field.default_value = r["Default"]
 
         field.is_uni = r["Key"] == "UNI"
         field.is_pk = r["Key"] == "PRI"

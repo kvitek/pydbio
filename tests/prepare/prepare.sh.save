@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+DATABASE=$1
+USER=$2
+PASSWORD="$(openssl rand -base64 10)"
+
+cat > sample.sql <<EOF
+\connect postgres
+\restrict KRvdiWPbtVUKfQzJGC3uMKulxMfgZpn5pzEg641en3llVwbZHEV7ZyUiYnucGNp
+
+DROP DATABASE IF EXISTS test WITH (FORCE);
+DROP OWNED BY "$USER";
+DROP USER "$USER";
+CREATE DATABASE "${DATABASE}";
+CREATE USER "$USER" WITH PASSWORD '${PASSWORD}';
+GRANT ALL PRIVILEGES ON DATABASE "$DATABASE" TO "$USER";
+\unrestrict KRvdiWPbtVUKfQzJGC3uMKulxMfgZpn5pzEg641en3llVwbZHEV7ZyUiYnucGNp
+\connect "$DATABASE"
+\restrict KRvdiWPbtVUKfQzJGC3uMKulxMfgZpn5pzEg641en3llVwbZHEV7ZyUiYnucGNp
+DROP TABLE IF EXISTS public.users;
+GRANT ALL PRIVILEGES ON SCHEMA public TO test_user;
+CREATE TABLE IF NOT EXISTS public.users (
+    id integer NOT NULL,
+    name character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    email character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    amount numeric(20, 4) NOT NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (id)
+) TABLESPACE pg_default;
+ALTER TABLE IF EXISTS public.users OWNER to test_user;
+\ unrestrict KRvdiWPbtVUKfQzJGC3uMKulxMfgZpn5pzEg641en3llVwbZHEV7ZyUiYnucGNp
+EOF
+
+echo "Database: ${DATABASE}"
+echo "Database: ${USER}"
+echo "Database: ${PASSWORD}"

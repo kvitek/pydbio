@@ -16,6 +16,7 @@ class Config(BaseModel):
     host: str
     port: int
     dialect: Dialects
+    search_path: Optional[list[str]] = None
     ssl_ca: Optional[str] = None
     ssl_cert: Optional[str] = None
     ssl_key: Optional[str] = None

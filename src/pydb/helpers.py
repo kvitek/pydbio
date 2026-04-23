@@ -7,17 +7,33 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Mapping,
+    ParamSpec,
     Protocol,
     Sequence,
     Tuple,
     Type,
     TypeVar,
     Union,
+    cast,
+    overload,
+)
+
+from pydantic import BaseModel
+
+from pydb.types import (
+    DATA_TYPE,
+    DATA_TYPE_MAPPING,
+    DATA_TYPE_ROW,
+    DATA_TYPE_SEQ_MODEL_CLASS,
+    ClassInstance,
+    DataclassInstance,
 )
 
 from ._const import PSQL_MYSQL_DATA_TYPES
 
 T = TypeVar("T")
+P = ParamSpec("P")
 TT = TypeVar("TT")
 
 
@@ -30,12 +46,13 @@ def retry(
     exc_cls: Tuple[Type[Exception], ...],
     cls: type[HasClose] | None = None,
     delay: float = 0.1,
-) -> Callable[[Callable[..., T]], Callable[..., T]]:
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     if retry <= 0:
         raise AttributeError()
 
-    def decorator(function: Callable[..., T]) -> Callable[..., T]:
-        def wrapper(*args, **kwargs) -> T:
+    def decorator(function: Callable[P, T]) -> Callable[P, T]:
+        # def decorator(function):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             current = Exception()
 
             for i in range(retry + 1):
@@ -194,3 +211,92 @@ class Converter:
     def convert_sql_to_fast_sql(cls, query: str) -> str:
         query = cls.values_tuple.sub("values %s", query)
         return cls.values_dict.sub("values %s", query)
+
+
+@overload
+def data_to_tuples(data: DATA_TYPE_MAPPING) -> Sequence[dict[str, Any]]: ...
+
+
+@overload
+def data_to_tuples(
+    data: DATA_TYPE_SEQ_MODEL_CLASS,
+    columns: Sequence[str],
+) -> Sequence[Sequence[Any]]: ...
+
+
+def data_to_tuples(
+    data: DATA_TYPE, columns: Sequence[str] = ()
+) -> Sequence[Sequence[Any]] | Sequence[Mapping[str, Any]]:
+    if not data:
+        return []
+
+    if isinstance(data[0], Mapping):
+        data = cast(DATA_TYPE_MAPPING, data)
+        return data
+    if isinstance(data[0], (tuple, list)):
+        return data  # type: ignore
+
+    result: list[list[Any]] = []
+    for row in data:
+        result.append([row.__dict__[c] for c in columns])
+
+    return result
+
+
+def check_columns(
+    columns: Sequence[str], mandatory: Sequence[str], fields: Sequence[str]
+):
+    if not set(mandatory).issubset(columns):
+        raise AttributeError(
+            f"columns must be superset of mandatory columns, difference: {set(mandatory).difference(columns)}"
+        )
+    if not set(columns).issubset(fields):
+        raise AttributeError(
+            f"columns must be subset of all columns, difference: {set(fields).symmetric_difference(columns)}"
+        )
+
+
+def extract_columns(
+    row: dict[str, Any] | DataclassInstance | BaseModel | ClassInstance,
+) -> list[str]:
+    if isinstance(row, Mapping):
+        return list(row)
+    elif isinstance(row, DataclassInstance):
+        return list(row.__dataclass_fields__)
+    elif isinstance(row, BaseModel):
+        return list(row.__pydantic_fields__)
+    elif getattr(row, "__dict__", None) is not None:
+        return [
+            k
+            for k in row.__dict__
+            if not k.startswith("_") and not k.endswith("_")
+        ]
+    else:
+        raise AttributeError(f"unknown row type {row.__class__}")
+
+
+def check_sequence(
+    row: DATA_TYPE_ROW,
+    columns: Sequence[str],
+    mandatory: Sequence[str],
+    fields: Sequence[str],
+) -> list[str]:
+    check_columns(columns=columns, mandatory=mandatory, fields=fields)
+
+    if isinstance(row, (tuple, list)):
+        if len(row) == len(columns):
+            return list(columns)
+        elif len(row) == len(mandatory):
+            return list(mandatory)
+        else:
+            raise AttributeError(
+                f"incorrect row columns count {len(row)}, must be {len(columns)} (columns) or {len(mandatory)} (mandatory columns)"
+            )
+    else:
+        row_columns = extract_columns(row)
+        if not set(mandatory).issubset(row_columns):
+            raise AttributeError(
+                f"row columns {row_columns} must be super set of mandatory columns {mandatory}"
+            )
+
+        return list(set(row_columns).intersection(columns))

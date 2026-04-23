@@ -83,6 +83,15 @@ class TestWhere(unittest.TestCase):
                 where, "(cik = cik) and (company_name like %s)", where
             )
 
+        with self.subTest("`!=`"):
+            params, where = gen_where(
+                {"cik": ("!=", "cik"), "company_name": ("like", "%app")}
+            )
+            self.assertEqual(params, ["%app"], params)
+            self.assertEqual(
+                where, "(cik <> cik) and (company_name like %s)", where
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

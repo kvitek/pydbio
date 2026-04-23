@@ -46,9 +46,10 @@ TABLE_METADATA = {
                 CREATE TABLE public.test_metadata
                 (
                     id integer NOT NULL,
-                    name character varying(30) NOT NULL,
+                    name character varying(30) NOT NULL DEFAULT 'name',
                     value_float numeric(10, 2),
                     value_json jsonb,
+                    "camelCase" integer,
                     PRIMARY KEY (id, name)
                 )
                 """,
@@ -59,9 +60,10 @@ TABLE_METADATA = {
                 CREATE TABLE test_metadata
                 (
                     id int NOT NULL,
-                    name varchar(30) NOT NULL,
+                    name varchar(30) NOT NULL DEFAULT 'name',
                     value_float decimal(10, 2),
                     value_json text,
+                    camelCase int,
                     PRIMARY KEY (id, name)
                 )    
                 """,

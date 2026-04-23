@@ -5,6 +5,7 @@ CREATE DATABASE test;
 CREATE USER test_user WITH PASSWORD '';
 GRANT ALL PRIVILEGES ON DATABASE test TO test_user;
 \ unrestrict KRvdiWPbtVUKfQzJGC3uMKulxMfgZpn5pzEg641en3llVwbZHEV7ZyUiYnucGNp \ connect test \ restrict KRvdiWPbtVUKfQzJGC3uMKulxMfgZpn5pzEg641en3llVwbZHEV7ZyUiYnucGNp DROP TABLE IF EXISTS public.users;
+GRANT ALL PRIVILEGES ON SCHEMA public TO test_user;
 CREATE TABLE IF NOT EXISTS public.users (
     id integer NOT NULL,
     name character varying(100) COLLATE pg_catalog."default" NOT NULL,

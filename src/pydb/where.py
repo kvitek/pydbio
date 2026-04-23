@@ -80,6 +80,8 @@ def get_params_where(params: dict[str, ParamOp], subs: list[Any]) -> list[str]:
                 if value[0] in OpTypeKeys:
                     if value[0] == "==":
                         where.append(f"{name} = {value[1]}")
+                    elif value[0] == "!=":
+                        where.append(f"{name} <> {value[1]}")
                     elif value[0] in ("is", "is not") or value[1] is not None:
                         where.append(f"{name} {value[0]} %s")
                         subs.append(value[1])
