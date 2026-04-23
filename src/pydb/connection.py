@@ -34,7 +34,7 @@ from .helpers import (
 )
 from .tablemeta import TableMetaData
 from .types import DATA_TYPE, T_BASE, T_BASE_DATA, T_DATA
-from .where import InitParams, gen_header, gen_where
+from .where import WhereParams, gen_header, gen_where
 
 
 class DatabaseConnection(ABC):
@@ -94,7 +94,7 @@ _TABLE_META: dict[int, dict[str, TableMetaData]] = {}
 class SqlIO(DatabaseConnection):
     _quote_symbol: str = ""
 
-    InitParams: TypeAlias = InitParams
+    InitParams: TypeAlias = WhereParams
 
     def table_metadata(self, name: str) -> TableMetaData:
         conid = id(self)

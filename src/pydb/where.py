@@ -41,7 +41,7 @@ ParamOp = Union[Param, dict[str, "ParamOp"]]
 
 
 # InitParams = dict[str, dict[str, ParamOp]]
-InitParams = dict[str, ParamOp]
+WhereParams = dict[str, ParamOp]
 
 
 def convert_logical(name: LogicalOp, value: ParamOp, subs: list[Any]) -> str:
@@ -97,7 +97,7 @@ def get_params_where(params: dict[str, ParamOp], subs: list[Any]) -> list[str]:
     return where
 
 
-def gen_where(params: InitParams) -> Tuple[list[Any], str]:
+def gen_where(params: WhereParams) -> Tuple[list[Any], str]:
     """
     Returns
     -------

@@ -1,6 +1,6 @@
 from pydantic import RootModel
 
-from src.pydb.configtypes import Config, Dialects
+from src.pydb.configtypes import Config
 
 
 class ConfigModels(RootModel):

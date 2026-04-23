@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 
 class Dialects(str, Enum):
@@ -20,6 +20,10 @@ class Config(BaseModel):
     ssl_ca: Optional[str] = None
     ssl_cert: Optional[str] = None
     ssl_key: Optional[str] = None
+
+
+class ConfigModels(RootModel):
+    root: dict[str, Config]
 
 
 QueryParams = Union[Dict[str, Any], Sequence[Any]]

@@ -10,7 +10,8 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+# let upload to github tar balls
+# dist/
 downloads/
 eggs/
 .eggs/
@@ -214,4 +215,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-tests/connection.json
+tests/envs/*

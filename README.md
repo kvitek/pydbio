@@ -12,7 +12,16 @@ or
 
 For every connection `Config` creates only **one** connection. In case connection drops it will be recreated if possible
 
-# Buil and install tar ball
+# Build and install tar ball
 
-Run `poetry build` in this project
-From other project run `pip install /path/to/this/project/dist/pydb-[version].tar.gz`
+## From scratch
+
+- run `conda env create -f env.yml` create new env with `poetry`
+- run `conda activate pydb`
+- run `poetry install` - install all dependencies for project
+- run `poetry build` - build tar ball in `dist` folder
+
+## Add to another project
+
+- activate another project enviroment
+- from other project run `pip install /path/to/this/project/dist/pydb-[version].tar.gz`
